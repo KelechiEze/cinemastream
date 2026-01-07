@@ -7,7 +7,7 @@ import SectionBanner from '../components/SectionBanner';
 import SectionTVSeries from '../components/SectionTVSeries';
 import SectionSeasonFeature from '../components/SectionSeasonFeature';
 import { Movie } from '../types';
-import { HERO_SLIDES, POPULAR_MOVIES, COMEDY_MOVIES, TV_SERIES } from '../constants'; // Fallbacks
+import { HERO_SLIDES, POPULAR_MOVIES, COMEDY_MOVIES, TV_SERIES } from '../constants';
 import { fetchTrending, fetchPopularMovies, fetchComedyMovies, fetchTVSeries } from '../services/tmdb';
 
 interface HomeProps {
@@ -38,7 +38,7 @@ const Home: React.FC<HomeProps> = ({ onPlay }) => {
             setComedyMovies(comedy.length > 0 ? comedy : COMEDY_MOVIES);
             setTvSeries(tv.length > 0 ? tv : TV_SERIES);
         } catch (e) {
-            console.error("Failed to load TMDB data", e);
+            console.error("Home Data Fetch Error", e);
         } finally {
             setIsLoading(false);
         }
@@ -46,32 +46,48 @@ const Home: React.FC<HomeProps> = ({ onPlay }) => {
     loadData();
   }, []);
 
+  if (isLoading) {
+    return (
+        <div className="min-h-screen bg-black flex flex-col items-center justify-center gap-6">
+            <div className="w-16 h-16 border-4 border-[#00bfff] border-t-transparent rounded-full animate-spin shadow-[0_0_20px_rgba(0,191,255,0.4)]" />
+            <p className="text-[#00bfff] text-xs font-black uppercase tracking-[0.5em] animate-pulse">Initializing Cinema</p>
+        </div>
+    );
+  }
+
   return (
-    <div id="home" className="min-h-screen bg-[#111]">
-      {/* Pass fetched movies and recommendations to HeroSlider */}
+    <div id="home" className="min-h-screen bg-[#111] overflow-x-hidden">
+      
+      {/* Hero Experience */}
       <HeroSlider 
           movies={heroMovies.length ? heroMovies : HERO_SLIDES} 
           recommendations={recommendations}
           onPlay={onPlay} 
       />
       
-      <main className="max-w-[1600px] mx-auto px-6 mt-16 md:mt-24">
+      {/* Primary Layout Wrapper */}
+      <main className="max-w-[1600px] mx-auto px-6 space-y-24 md:space-y-32 py-16 md:py-24">
         
-        <SectionPopular movies={popularMovies.length ? popularMovies : POPULAR_MOVIES} onPlay={onPlay} />
+        {/* Popular Section with Expanded Capability */}
+        <SectionPopular movies={popularMovies} onPlay={onPlay} />
+
+        {/* Thematic Comedy Row */}
+        <div id="comedy">
+            <SectionComedy movies={comedyMovies} onPlay={onPlay} />
+        </div>
+
+        {/* Global TV Collection */}
+        <SectionTVSeries movies={tvSeries} onPlay={onPlay} />
+
+        {/* Interactive Feature Banner */}
+        <div id="banner" className="relative -mx-6">
+            <SectionBanner onPlay={onPlay} />
+        </div>
+
+        {/* Featured Season Deep-Dive */}
+        <SectionSeasonFeature onPlay={onPlay} />
 
       </main>
-
-      <div id="comedy">
-          <SectionComedy movies={comedyMovies.length ? comedyMovies : COMEDY_MOVIES} onPlay={onPlay} />
-      </div>
-
-      <SectionTVSeries movies={tvSeries.length ? tvSeries : TV_SERIES} onPlay={onPlay} />
-
-      <div id="banner">
-        <SectionBanner onPlay={onPlay} />
-      </div>
-
-      <SectionSeasonFeature onPlay={onPlay} />
 
     </div>
   );

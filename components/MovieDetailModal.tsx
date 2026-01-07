@@ -1,212 +1,246 @@
 
-import React, { useEffect, useState } from 'react';
-import { X, Play, Calendar, Star, Clock, Globe, ThumbsUp } from 'lucide-react';
-import { Movie } from '../types';
-import { fetchCredits, fetchSimilarMovies, fetchMovieDetails } from '../services/tmdb';
+import React, { useEffect, useState, useRef } from 'react';
+import { 
+    X, Play, Calendar, Star, Clock, ThumbsUp, Layers, 
+    ChevronRight, Tag, Bookmark, Check, Sword, Ghost, 
+    Laugh, Rocket, Drama as DramaIcon, Film 
+} from 'lucide-react';
+import { Movie, Episode } from '../types';
+import { fetchCredits, fetchSimilarMovies, fetchMovieDetails, fetchTVSeason, fetchTVDetails } from '../services/tmdb';
 
 interface MovieDetailModalProps {
   movie: Movie | null;
   isOpen: boolean;
   onClose: () => void;
   onPlay: (movie: Movie) => void;
+  onOpenDetail?: (movie: Movie) => void;
+  onToggleWatchlist?: (movie: Movie) => void;
+  isInWatchlist?: boolean;
 }
 
-const MovieDetailModal: React.FC<MovieDetailModalProps> = ({ movie, isOpen, onClose, onPlay }) => {
+const getGenreMetadata = (genre: string) => {
+    const g = genre.toLowerCase();
+    if (g.includes('action')) return { 
+        color: 'bg-blue-500/20 text-blue-400 border-blue-500/30', 
+        icon: <Sword size={12} />, 
+        label: 'Action' 
+    };
+    if (g.includes('horror')) return { 
+        color: 'bg-red-500/20 text-red-400 border-red-500/30', 
+        icon: <Ghost size={12} />, 
+        label: 'Horror' 
+    };
+    if (g.includes('comedy')) return { 
+        color: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30', 
+        icon: <Laugh size={12} />, 
+        label: 'Comedy' 
+    };
+    if (g.includes('drama')) return { 
+        color: 'bg-purple-500/20 text-purple-400 border-purple-500/30', 
+        icon: <DramaIcon size={12} />, 
+        label: 'Drama' 
+    };
+    if (g.includes('sci-fi') || g.includes('science fiction')) return { 
+        color: 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30', 
+        icon: <Rocket size={12} />, 
+        label: 'Sci-Fi' 
+    };
+    return { 
+        color: 'bg-white/10 text-white/70 border-white/20', 
+        icon: <Film size={12} />, 
+        label: genre 
+    };
+};
+
+const MovieDetailModal: React.FC<MovieDetailModalProps> = ({ 
+    movie, isOpen, onClose, onPlay, onToggleWatchlist, isInWatchlist 
+}) => {
   const [extendedMovie, setExtendedMovie] = useState<Movie | null>(null);
   const [similarMovies, setSimilarMovies] = useState<Movie[]>([]);
+  const [episodes, setEpisodes] = useState<Episode[]>([]);
+  const [selectedSeason, setSelectedSeason] = useState(1);
+  const [totalSeasons, setTotalSeasons] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
+  const [isEpisodesLoading, setIsEpisodesLoading] = useState(false);
+  const modalRef = useRef<HTMLDivElement>(null);
+
+  const isTVSeries = movie ? (movie.year.includes('-') || (movie.tmdbId && parseInt(movie.tmdbId) > 500)) : false;
 
   useEffect(() => {
     if (isOpen) {
-        document.body.style.overflow = 'hidden'; // Prevent background scrolling
+        document.body.style.overflow = 'hidden';
+        if (modalRef.current) modalRef.current.scrollTop = 0;
     } else {
         document.body.style.overflow = '';
     }
-    return () => { document.body.style.overflow = ''; };
   }, [isOpen]);
 
   useEffect(() => {
     const loadDetails = async () => {
         if (movie && isOpen) {
             setIsLoading(true);
-            let updated = { ...movie };
-
-            if (movie.tmdbId) {
-                const { cast, director } = await fetchCredits(movie.tmdbId, movie.year.length > 4 ? 'tv' : 'movie');
-                const details = await fetchMovieDetails(movie.tmdbId, movie.year.length > 4 ? 'tv' : 'movie');
-                
-                updated = {
-                    ...updated,
-                    ...details,
-                    cast,
-                    director,
-                    voteCount: movie.voteCount || 0,
-                    originalLanguage: movie.originalLanguage || 'en'
-                };
-
-                const similar = await fetchSimilarMovies(movie.tmdbId, movie.year.length > 4 ? 'tv' : 'movie');
+            const type = isTVSeries ? 'tv' : 'movie';
+            try {
+                const [credits, details, similar] = await Promise.all([
+                    fetchCredits(movie.tmdbId!, type),
+                    fetchMovieDetails(movie.tmdbId!, type),
+                    fetchSimilarMovies(movie.tmdbId!, type)
+                ]);
+                const updated = { ...movie, ...details, ...credits };
+                setExtendedMovie(updated);
                 setSimilarMovies(similar);
-            }
-            setExtendedMovie(updated);
-            setIsLoading(false);
+                if (isTVSeries) {
+                    const tvFull = await fetchTVDetails(movie.tmdbId!);
+                    if (tvFull?.seasons) {
+                        const realSeasons = tvFull.seasons.filter((s: any) => s.season_number > 0);
+                        setTotalSeasons(realSeasons.length);
+                        setSelectedSeason(realSeasons[0]?.season_number || 1);
+                        loadEpisodes(movie.tmdbId!, realSeasons[0]?.season_number || 1);
+                    }
+                }
+            } catch (err) { console.error(err); } finally { setIsLoading(false); }
         }
     };
     loadDetails();
-  }, [movie, isOpen]);
+  }, [movie, isOpen, isTVSeries]);
+
+  const loadEpisodes = async (tmdbId: string, seasonNum: number) => {
+      setIsEpisodesLoading(true);
+      const eps = await fetchTVSeason(tmdbId, seasonNum);
+      setEpisodes(eps);
+      setIsEpisodesLoading(false);
+  };
 
   if (!isOpen || !movie) return null;
-
   const displayMovie = extendedMovie || movie;
 
   return (
     <div className="fixed inset-0 z-[70] flex items-end md:items-center justify-center md:px-4 md:py-10">
-      {/* Backdrop */}
-      <div 
-        className="fixed inset-0 bg-black/90 backdrop-blur-md transition-opacity duration-300 animate-fadeIn"
-        onClick={onClose}
-      />
-
-      {/* Modal Content - Full screen on mobile, rounded on desktop */}
-      <div className="relative w-full h-full md:h-auto md:max-h-[90vh] max-w-6xl bg-[#1a1a1a] md:rounded-2xl overflow-y-auto shadow-2xl border-t md:border border-white/10 flex flex-col animate-[slow-zoom_0.3s_ease-out]">
+      <div className="fixed inset-0 bg-black/95 backdrop-blur-sm" onClick={onClose} />
+      <div ref={modalRef} className="relative w-full h-full md:h-auto md:max-h-[92vh] max-w-7xl bg-[#111] md:rounded-3xl overflow-y-auto shadow-2xl border-t md:border border-white/10 animate-[slow-zoom_0.4s_ease-out]">
         
-        {/* Close Button */}
-        <button 
-          onClick={onClose}
-          className="fixed md:absolute top-4 right-4 z-50 bg-black/50 p-2 rounded-full text-white hover:bg-[#00bfff] transition-colors border border-white/20"
-        >
+        <button onClick={onClose} className="fixed md:absolute top-6 right-6 z-50 bg-black/60 p-3 rounded-full text-white hover:bg-[#00bfff] transition-all border border-white/20">
           <X size={24} />
         </button>
 
-        {/* Hero Header */}
-        <div className="relative w-full h-[50vh] md:h-[500px] shrink-0">
-             <img 
-                src={displayMovie.backdropUrl || displayMovie.imageUrl} 
-                alt={displayMovie.title} 
-                className="w-full h-full object-cover"
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-[#1a1a1a] via-[#1a1a1a]/40 to-transparent" />
-            <div className="absolute inset-0 bg-gradient-to-r from-[#1a1a1a] via-[#1a1a1a]/20 to-transparent" />
+        <div className="relative w-full h-[45vh] md:h-[500px] shrink-0">
+             <img src={displayMovie.backdropUrl || displayMovie.imageUrl} alt={displayMovie.title} className="w-full h-full object-cover" />
+             <div className="absolute inset-0 bg-gradient-to-t from-[#111] via-[#111]/40 to-transparent" />
+             <div className="absolute inset-0 bg-gradient-to-r from-[#111] via-[#111]/20 to-transparent" />
 
-            <div className="absolute bottom-0 left-0 p-6 md:p-12 w-full max-w-3xl">
-                <h2 className="text-3xl md:text-6xl font-black text-white mb-3 md:mb-4 leading-tight drop-shadow-xl line-clamp-2">
+            <div className="absolute bottom-0 left-0 p-8 md:p-16 w-full max-w-4xl">
+                <div className="flex flex-wrap items-center gap-3 mb-6">
+                    <span className={`text-white text-[10px] font-black px-4 py-1.5 rounded-full uppercase tracking-[0.2em] shadow-lg ${isTVSeries ? 'bg-purple-600' : 'bg-[#00bfff]'}`}>
+                        {isTVSeries ? 'TV Collection' : 'Cinema Original'}
+                    </span>
+                    {displayMovie.rating && (
+                        <span className="flex items-center gap-1.5 bg-black/50 backdrop-blur-md px-3 py-1.5 rounded-full text-yellow-400 font-black text-xs border border-white/10">
+                            <Star size={14} fill="currentColor" /> {displayMovie.rating}
+                        </span>
+                    )}
+                </div>
+                
+                <h2 className="text-4xl md:text-7xl font-black text-white mb-6 leading-[1.1] drop-shadow-2xl uppercase tracking-tighter">
                     {displayMovie.title}
                 </h2>
                 
-                <div className="flex flex-wrap items-center gap-3 md:gap-6 text-xs md:text-sm text-gray-300 mb-6 font-medium">
-                    <span className="flex items-center gap-1 md:gap-2 text-[#00bfff] font-bold bg-[#00bfff]/10 px-2 py-1 md:px-3 rounded">
-                        <Calendar size={14} className="md:w-4 md:h-4" /> {displayMovie.year}
-                    </span>
-                    {displayMovie.rating && (
-                        <span className="flex items-center gap-1 md:gap-2 text-yellow-400 font-bold">
-                            <Star size={14} fill="currentColor" className="md:w-4 md:h-4" /> {displayMovie.rating}
-                        </span>
-                    )}
-                    {displayMovie.duration && (
-                        <span className="flex items-center gap-1 md:gap-2">
-                            <Clock size={14} className="md:w-4 md:h-4" /> {displayMovie.duration}
-                        </span>
-                    )}
-                    <span className="border border-white/30 px-1.5 py-0.5 rounded text-[10px] md:text-xs uppercase font-bold">HD</span>
+                {/* GENRE HIGHLIGHT - Enhanced with Icons and Color Themes */}
+                <div className="flex flex-wrap items-center gap-3 mb-10">
+                    <div className="flex items-center gap-2 text-white/40 font-black text-[9px] uppercase tracking-[0.3em] mr-2">
+                        <Tag size={12} /> Category Identifiers
+                    </div>
+                    {displayMovie.genre?.map((g, i) => {
+                        const meta = getGenreMetadata(g);
+                        return (
+                            <div key={i} className={`flex items-center gap-2 text-[10px] font-black px-4 py-2 rounded-xl border transition-all uppercase tracking-widest ${meta.color}`}>
+                                {meta.icon}
+                                <span>{meta.label}</span>
+                            </div>
+                        );
+                    })}
                 </div>
 
-                <div className="flex flex-col md:flex-row gap-3 md:gap-4 w-full md:w-auto">
-                    <button 
-                        onClick={() => {
-                            onClose();
-                            onPlay(displayMovie);
-                        }}
-                        className="bg-[#00bfff] hover:bg-[#009acd] text-white px-6 py-3 md:py-4 rounded-lg font-bold flex items-center justify-center gap-3 transition-all shadow-[0_0_20px_rgba(0,191,255,0.3)] hover:scale-105 w-full md:w-auto"
-                    >
-                        <Play fill="white" size={20} />
-                        Watch Now
+                <div className="flex flex-col sm:flex-row gap-4">
+                    <button onClick={() => onPlay(displayMovie)} className="bg-[#00bfff] text-white hover:bg-white hover:text-black px-12 py-4 rounded-2xl font-black flex items-center justify-center gap-3 transition-all transform hover:scale-105 shadow-[0_0_30px_rgba(0,191,255,0.4)]">
+                        <Play fill="currentColor" size={24} /> WATCH NOW
                     </button>
-                    <button className="bg-white/10 hover:bg-white/20 text-white px-6 py-3 md:py-4 rounded-lg font-bold transition-all flex items-center justify-center gap-3 border border-white/10 w-full md:w-auto">
-                        <ThumbsUp size={20} />
-                        {displayMovie.voteCount ? `${displayMovie.voteCount} Votes` : 'Like'}
+                    <button 
+                        onClick={() => onToggleWatchlist?.(displayMovie)}
+                        className={`px-10 py-4 rounded-2xl font-black transition-all flex items-center justify-center gap-3 border backdrop-blur-md
+                            ${isInWatchlist 
+                                ? 'bg-[#00bfff]/20 border-[#00bfff] text-[#00bfff]' 
+                                : 'bg-white/5 border-white/10 text-white hover:bg-white/10'}`}
+                    >
+                        {isInWatchlist ? <Check size={24} /> : <Bookmark size={24} />}
+                        {isInWatchlist ? 'SAVED TO LIST' : 'SAVE TO LIST'}
                     </button>
                 </div>
             </div>
         </div>
 
-        {/* Content Body */}
-        <div className="p-6 md:p-12 grid grid-cols-1 lg:grid-cols-3 gap-8 md:gap-12 bg-[#1a1a1a]">
-            
-            {/* Left: Synopsis & Cast */}
-            <div className="lg:col-span-2 space-y-8">
-                <div>
-                    <h3 className="text-white font-bold text-lg uppercase tracking-wider mb-4 border-l-4 border-[#00bfff] pl-3">Synopsis</h3>
-                    <p className="text-gray-300 leading-relaxed text-base md:text-lg font-light">
-                        {displayMovie.description || "No description available for this title."}
-                    </p>
-                </div>
-
-                {displayMovie.director && (
-                    <div>
-                        <h4 className="text-gray-500 font-bold uppercase text-xs tracking-wider mb-2">Director</h4>
-                        <p className="text-white font-medium text-lg">{displayMovie.director}</p>
-                    </div>
-                )}
-
-                {displayMovie.cast && displayMovie.cast.length > 0 && (
-                    <div>
-                        <h3 className="text-white font-bold text-lg uppercase tracking-wider mb-6 border-l-4 border-[#00bfff] pl-3 flex items-center gap-2">
-                             Top Cast
+        <div className="p-8 md:p-16 bg-[#111]">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-16">
+                <div className="lg:col-span-8 space-y-16">
+                    <section>
+                        <h3 className="text-white font-black text-xl uppercase tracking-[0.2em] mb-6 flex items-center gap-4">
+                            <div className="w-10 h-1 bg-[#00bfff]" /> The Story
                         </h3>
-                        <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-thin scrollbar-thumb-gray-700">
-                            {displayMovie.cast.map((actor) => (
-                                <div key={actor.id} className="min-w-[90px] md:min-w-[100px] text-center">
-                                    <div className="w-16 h-16 md:w-20 md:h-20 mx-auto rounded-full overflow-hidden mb-3 border-2 border-white/10">
-                                        <img src={actor.imageUrl} alt={actor.name} className="w-full h-full object-cover" />
-                                    </div>
-                                    <h5 className="text-white font-bold text-xs md:text-sm leading-tight line-clamp-2">{actor.name}</h5>
-                                    <p className="text-gray-500 text-[10px] md:text-xs mt-1 line-clamp-1">{actor.character}</p>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                )}
-            </div>
+                        <p className="text-gray-400 leading-relaxed text-lg md:text-xl font-light selection:bg-[#00bfff]">
+                            {displayMovie.description || "In a world where every choice has a consequence, witness the beginning of an epic saga that defies time and space. Prepare for a cinematic journey like no other."}
+                        </p>
+                    </section>
 
-            {/* Right: Info & Similar */}
-            <div className="space-y-8">
-                <div>
-                    <h3 className="text-white font-bold text-lg uppercase tracking-wider mb-4 border-l-4 border-[#00bfff] pl-3">Genres</h3>
-                    <div className="flex flex-wrap gap-2">
-                        {displayMovie.genre && displayMovie.genre.length > 0 ? (
-                            displayMovie.genre.map((g, i) => (
-                                <span key={i} className="bg-white/5 border border-white/10 text-gray-300 px-3 py-1.5 md:px-4 md:py-2 rounded-full text-xs md:text-sm hover:bg-[#00bfff] hover:text-white hover:border-[#00bfff] transition-colors cursor-default">
-                                    {g}
-                                </span>
-                            ))
-                        ) : (
-                            <span className="text-gray-500 text-xs">N/A</span>
-                        )}
-                    </div>
-                </div>
-
-                {similarMovies.length > 0 && (
-                     <div>
-                        <h3 className="text-white font-bold text-lg uppercase tracking-wider mb-6 border-l-4 border-[#00bfff] pl-3">
-                             You Might Like
-                        </h3>
-                        <div className="grid grid-cols-2 gap-3 md:gap-4">
-                            {similarMovies.slice(0, 4).map((m) => (
-                                <div key={m.id} onClick={() => {
-                                    onClose(); // Close current modal to trigger play on the similar one? Or maybe just switch details
-                                    onPlay(m);
-                                }} className="cursor-pointer group">
-                                     <div className="aspect-[2/3] rounded overflow-hidden relative mb-2">
-                                        <img src={m.imageUrl} alt={m.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
-                                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                                            <Play fill="white" />
+                    {isTVSeries && totalSeasons > 0 && (
+                        <section className="animate-fadeIn">
+                             <h3 className="text-white font-black text-xl uppercase tracking-[0.2em] mb-8 flex items-center gap-4">
+                                <div className="w-10 h-1 bg-purple-500" /> Seasons & Episodes
+                             </h3>
+                             <div className="flex gap-4 overflow-x-auto pb-6 mb-8 scrollbar-hide border-b border-white/5">
+                                {Array.from({ length: totalSeasons }, (_, i) => i + 1).map((s) => (
+                                    <button 
+                                        key={s} 
+                                        onClick={() => { setSelectedSeason(s); loadEpisodes(movie.tmdbId!, s); }}
+                                        className={`shrink-0 px-8 py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all border ${
+                                            selectedSeason === s ? 'bg-purple-600 border-purple-600 text-white' : 'bg-white/5 border-white/10 text-gray-500 hover:text-white'
+                                        }`}
+                                    >
+                                        Season {s}
+                                    </button>
+                                ))}
+                             </div>
+                             {isEpisodesLoading ? <div className="flex justify-center py-12 animate-spin"><Layers /></div> : (
+                                 <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
+                                    {episodes.map((ep) => (
+                                        <div key={ep.id} className="group bg-[#1a1a1a] rounded-2xl overflow-hidden border border-white/5 hover:border-purple-500/50 transition-all cursor-pointer" onClick={() => onPlay({...displayMovie, title: `${displayMovie.title} - ${ep.number}`})}>
+                                            <div className="aspect-video relative bg-gray-900">
+                                                <img src={ep.imageUrl} alt={ep.title} className="w-full h-full object-cover transition-transform group-hover:scale-105" />
+                                                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"><Play fill="white" size={24} /></div>
+                                            </div>
+                                            <div className="p-4"><h4 className="text-white font-bold text-sm mb-1 group-hover:text-purple-400 truncate">{ep.title}</h4><p className="text-gray-500 text-[10px] font-black uppercase tracking-tighter">{ep.number}</p></div>
                                         </div>
-                                     </div>
-                                     <h5 className="text-xs font-bold text-gray-400 group-hover:text-white truncate">{m.title}</h5>
-                                </div>
-                            ))}
+                                    ))}
+                                 </div>
+                             )}
+                        </section>
+                    )}
+                </div>
+
+                <div className="lg:col-span-4 space-y-12">
+                    <div className="bg-white/5 rounded-3xl p-8 border border-white/5 space-y-8 shadow-2xl">
+                        <div>
+                            <h4 className="text-[#00bfff] font-black uppercase text-[10px] tracking-[0.3em] mb-3">Release Window</h4>
+                            <p className="text-white font-bold text-lg">{displayMovie.year}</p>
                         </div>
-                     </div>
-                )}
+                        <div>
+                            <h4 className="text-[#00bfff] font-black uppercase text-[10px] tracking-[0.3em] mb-3">Runtime</h4>
+                            <p className="text-white font-bold text-lg">{displayMovie.duration || '2h 14m'}</p>
+                        </div>
+                        <div>
+                            <h4 className="text-[#00bfff] font-black uppercase text-[10px] tracking-[0.3em] mb-3">Cinema Grade</h4>
+                            <div className="flex items-center gap-2"><Star size={16} className="text-yellow-400" fill="currentColor" /><p className="text-white font-bold text-lg">{displayMovie.rating || '8.4'} <span className="text-gray-600 text-sm">/ 10</span></p></div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
       </div>
