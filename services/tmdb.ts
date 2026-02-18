@@ -146,6 +146,15 @@ export const fetchCredits = async (id: string, type: 'movie' | 'tv' = 'movie'): 
     }
 };
 
+export const fetchPersonDetails = async (id: string): Promise<any> => {
+    try {
+        const response = await fetch(`${BASE_URL}/person/${id}?api_key=${API_KEY}&language=en-US`);
+        return await response.json();
+    } catch (e) {
+        return null;
+    }
+};
+
 export const fetchSimilarMovies = async (id: string, type: 'movie' | 'tv' = 'movie'): Promise<Movie[]> => {
     try {
         const response = await fetch(`${BASE_URL}/${type}/${id}/similar?api_key=${API_KEY}&language=en-US&page=1`);

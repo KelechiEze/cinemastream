@@ -71,13 +71,14 @@ export const VIDEO_SOURCES = [
 
 export const HERO_SLIDES: Movie[] = [
   {
-    id: 'hero-1',
+    id: '353577',
+    tmdbId: '353577',
     title: 'American Made',
     year: '2017',
     genre: ['Comedy', 'Action'],
     duration: '1hr 55 mins',
-    imageUrl: 'https://picsum.photos/seed/american/600/900',
-    backdropUrl: 'https://images.unsplash.com/photo-1536440136628-849c177e76a1?q=80&w=1920&auto=format&fit=crop',
+    imageUrl: 'https://image.tmdb.org/t/p/w500/8X98H8XUwt99V9Glm6vA3Y9T599.jpg',
+    backdropUrl: 'https://image.tmdb.org/t/p/original/6K98H8XUwt99V9Glm6vA3Y9T599.jpg',
     description: 'Barry Seal, a TWA pilot, is recruited by the CIA to provide reconnaissance on the burgeoning communist threat in Central America.',
     isFeatured: true,
   }
