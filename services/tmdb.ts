@@ -43,7 +43,6 @@ export const fetchPopularMovies = async (page: number = 1): Promise<Movie[]> => 
   }
 };
 
-// Added fetchComedyMovies
 export const fetchComedyMovies = async (page: number = 1): Promise<Movie[]> => {
   try {
     const response = await fetch(`${BASE_URL}/discover/movie?api_key=${API_KEY}&language=en-US&sort_by=popularity.desc&page=${page}&with_genres=35`);
@@ -74,22 +73,31 @@ export const fetchUpcoming = async (page: number = 1): Promise<Movie[]> => {
     }
 };
 
-export const discoverMovies = async (genreId?: string, page: number = 1): Promise<Movie[]> => {
-  const genreParam = genreId ? `&with_genres=${genreId}` : '';
-  const response = await fetch(`${BASE_URL}/discover/movie?api_key=${API_KEY}&language=en-US&sort_by=popularity.desc&page=${page}${genreParam}`);
+export const discoverMovies = async (genreId?: string, page: number = 1, country?: string, lang?: string): Promise<Movie[]> => {
+  let params = `api_key=${API_KEY}&language=en-US&sort_by=popularity.desc&page=${page}`;
+  if (genreId) params += `&with_genres=${genreId}`;
+  if (country) params += `&with_origin_country=${country}`;
+  if (lang) params += `&with_original_language=${lang}`;
+
+  const response = await fetch(`${BASE_URL}/discover/movie?${params}`);
   const data = await response.json();
   return data.results.map(mapTmdbToMovie);
 };
 
-export const discoverTV = async (genreId?: string, page: number = 1): Promise<Movie[]> => {
-  let extraParams = genreId ? `&with_genres=${genreId}` : '';
+export const discoverTV = async (genreId?: string, page: number = 1, country?: string, lang?: string): Promise<Movie[]> => {
+  let params = `api_key=${API_KEY}&language=en-US&sort_by=popularity.desc&page=${page}`;
   
   // Special handling for "Anime"
   if (genreId === 'anime') {
-    extraParams = `&with_genres=16&with_original_language=ja`;
+    params += `&with_genres=16&with_original_language=ja`;
+  } else if (genreId) {
+    params += `&with_genres=${genreId}`;
   }
 
-  const response = await fetch(`${BASE_URL}/discover/tv?api_key=${API_KEY}&language=en-US&sort_by=popularity.desc&page=${page}${extraParams}`);
+  if (country) params += `&with_origin_country=${country}`;
+  if (lang) params += `&with_original_language=${lang}`;
+
+  const response = await fetch(`${BASE_URL}/discover/tv?${params}`);
   const data = await response.json();
   return data.results.map(mapTmdbToMovie);
 };

@@ -1,13 +1,22 @@
 
 import { Movie, NavItem, Episode, NewsItem, SubscriptionPlan } from './types';
 
-// Updated Nav items to reflect real routes
+// Updated Nav items to reflect real routes and added Regions
 export const NAV_ITEMS: NavItem[] = [
   { label: 'Home', href: '/', hasDropdown: false },
   { label: 'Movies', href: '/movies', hasDropdown: true },
   { label: 'TV Shows', href: '/tv-shows', hasDropdown: true },
+  { label: 'Regions', href: '#', hasDropdown: true }, // New Regions Dropdown
   { label: 'My List', href: '/my-list', hasDropdown: false },
   { label: 'Latest', href: '/latest', hasDropdown: false },
+];
+
+export const INDUSTRIES = [
+    { id: 'hollywood', name: 'Hollywood', country: 'US', lang: 'en' },
+    { id: 'bollywood', name: 'Bollywood', country: 'IN', lang: 'hi' },
+    { id: 'korean', name: 'Korean', country: 'KR', lang: 'ko' },
+    { id: 'japanese', name: 'Japanese', country: 'JP', lang: 'ja' },
+    { id: 'indian', name: 'Indian (Regional)', country: 'IN', lang: '' },
 ];
 
 export const MOVIE_GENRES = [
@@ -30,7 +39,7 @@ export const MOVIE_GENRES = [
 ];
 
 export const TV_GENRES = [
-    { id: 'anime', name: 'Anime' }, // Custom key for anime filtering
+    { id: 'anime', name: 'Anime' },
     { id: '10759', name: 'Action & Adventure' },
     { id: '16', name: 'Animation' },
     { id: '35', name: 'Comedy' },
@@ -74,7 +83,6 @@ export const HERO_SLIDES: Movie[] = [
   }
 ];
 
-// Added missing fallbacks
 export const POPULAR_MOVIES: Movie[] = [];
 export const COMEDY_MOVIES: Movie[] = [];
 export const TV_SERIES: Movie[] = [];

@@ -6,6 +6,7 @@ import SectionComedy from '../components/SectionComedy';
 import SectionBanner from '../components/SectionBanner';
 import SectionTVSeries from '../components/SectionTVSeries';
 import SectionSeasonFeature from '../components/SectionSeasonFeature';
+import SectionRegions from '../components/SectionRegions';
 import { Movie } from '../types';
 import { HERO_SLIDES, POPULAR_MOVIES, COMEDY_MOVIES, TV_SERIES } from '../constants';
 import { fetchTrending, fetchPopularMovies, fetchComedyMovies, fetchTVSeries } from '../services/tmdb';
@@ -68,6 +69,9 @@ const Home: React.FC<HomeProps> = ({ onPlay }) => {
       {/* Primary Layout Wrapper */}
       <main className="max-w-[1600px] mx-auto px-6 space-y-24 md:space-y-32 py-16 md:py-24">
         
+        {/* Visual Industry Browse */}
+        <SectionRegions />
+
         {/* Popular Section with Expanded Capability */}
         <SectionPopular movies={popularMovies} onPlay={onPlay} />
 

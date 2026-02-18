@@ -4,6 +4,7 @@ import { HashRouter as Router, Routes, Route } from 'react-router-dom';
 import Navbar from './components/Navbar';
 import Home from './pages/Home';
 import SignUp from './pages/SignUp';
+import SignIn from './pages/SignIn';
 import Dashboard from './pages/Dashboard';
 import MoviesPage from './pages/Movies';
 import TVShowsPage from './pages/TVShows';
@@ -145,6 +146,7 @@ const App: React.FC = () => {
           <Route path="/latest" element={<LatestPage onPlay={handleOpenDetail} />} />
           <Route path="/blog" element={<BlogPage />} />
           <Route path="/signup" element={<SignUp onSignUp={handleAuth} />} />
+          <Route path="/signin" element={<SignIn onSignIn={handleAuth} />} />
           <Route 
             path="/dashboard" 
             element={<Dashboard user={user} onLogout={handleLogout} onPlay={handleOpenDetail} />} 
