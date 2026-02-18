@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { Movie, Episode } from '../types';
 import { fetchSimilarMovies, fetchTVSeason } from '../services/tmdb';
+import VideoAdOverlay from './VideoAdOverlay';
 
 const formatTime = (seconds: number) => {
   if (isNaN(seconds)) return '0:00';
@@ -47,6 +48,9 @@ const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({ movie, onClose, onS
   const [isLoading, setIsLoading] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
 
+  // AD SYSTEM STATE
+  const [showAd, setShowAd] = useState(true);
+
   // Sync Fullscreen state and handle mobile view resizing
   useEffect(() => {
     const handleFsChange = () => setIsFullscreen(!!document.fullscreenElement);
@@ -68,7 +72,7 @@ const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({ movie, onClose, onS
     setShowControls(true);
     if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
     
-    if (isPlaying && !showSpeedMenu) {
+    if (isPlaying && !showSpeedMenu && !showAd) {
         hideTimerRef.current = setTimeout(() => {
             setShowControls(false);
         }, 3000);
@@ -80,7 +84,7 @@ const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({ movie, onClose, onS
     return () => {
         if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
     };
-  }, [isPlaying, showSpeedMenu]);
+  }, [isPlaying, showSpeedMenu, showAd]);
 
   useEffect(() => {
     const loadUpNext = async () => {
@@ -121,7 +125,7 @@ const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({ movie, onClose, onS
   }, [movie]);
 
   const handlePlayPause = () => {
-    if (!videoRef.current) return;
+    if (!videoRef.current || showAd) return;
     if (videoRef.current.paused) {
       videoRef.current.play();
     } else {
@@ -130,7 +134,7 @@ const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({ movie, onClose, onS
   };
 
   const skip = (sec: number) => {
-    if (videoRef.current) videoRef.current.currentTime += sec;
+    if (videoRef.current && !showAd) videoRef.current.currentTime += sec;
     resetHideTimer();
   };
 
@@ -141,6 +145,7 @@ const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({ movie, onClose, onS
   };
 
   const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (showAd) return;
     const val = parseFloat(e.target.value);
     if (videoRef.current) {
         videoRef.current.currentTime = (val / 100) * (videoRef.current.duration || 0);
@@ -155,17 +160,14 @@ const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({ movie, onClose, onS
 
     if (!document.fullscreenElement) {
       try {
-        // Standard requestFullscreen (works on Android and PC)
         if (elem?.requestFullscreen) {
           await elem.requestFullscreen();
         } 
-        // iOS Safari fallback (works on iPhone/iPad)
         else if (video && (video as any).webkitEnterFullscreen) {
           (video as any).webkitEnterFullscreen();
         }
       } catch (err) {
         console.error("Fullscreen request failed:", err);
-        // Direct fallback to video element if container fails
         if (video?.requestFullscreen) {
           await video.requestFullscreen();
         }
@@ -191,21 +193,34 @@ const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({ movie, onClose, onS
         onMouseMove={resetHideTimer}
         className={`relative transition-all duration-700 bg-black flex items-center justify-center ${isFullHeight ? 'h-full w-full' : 'h-[60vh] md:h-full w-full md:w-3/4'}`}
       >
+        {/* AD OVERLAY INTEGRATION */}
+        {showAd && (
+            <VideoAdOverlay 
+                onAdComplete={() => {
+                    setShowAd(false);
+                    videoRef.current?.play();
+                }} 
+                isMuted={isMuted}
+                onToggleMute={() => setIsMuted(!isMuted)}
+            />
+        )}
+
         <video 
             ref={videoRef} 
             src="https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4" 
-            className={`w-full h-full transition-all duration-500 object-${videoFit}`} 
+            className={`w-full h-full transition-all duration-500 object-${videoFit} ${showAd ? 'opacity-0' : 'opacity-100'}`} 
             onTimeUpdate={() => setProgress((videoRef.current!.currentTime / (videoRef.current!.duration || 1)) * 100)} 
             onLoadedMetadata={() => setDuration(videoRef.current!.duration)} 
             onPlay={() => setIsPlaying(true)}
             onPause={() => setIsPlaying(false)}
             onEnded={() => setIsPlaying(false)} 
+            muted={isMuted}
             playsInline 
-            autoPlay 
+            autoPlay={!showAd} 
         />
 
         {/* UI Overlay */}
-        <div className={`absolute inset-0 z-30 transition-all duration-500 flex flex-col justify-between ${showControls ? 'opacity-100 bg-black/40' : 'opacity-0 pointer-events-none'}`}>
+        <div className={`absolute inset-0 z-30 transition-all duration-500 flex flex-col justify-between ${showControls && !showAd ? 'opacity-100 bg-black/40' : 'opacity-0 pointer-events-none'}`}>
           {/* Top Navbar */}
           <div className="p-4 md:p-10 flex items-center justify-between bg-gradient-to-b from-black/80 to-transparent">
             <button onClick={onClose} className="p-2 md:p-3 text-white hover:bg-[#00bfff] rounded-full transition-all active:scale-75 shadow-lg bg-black/20 backdrop-blur-sm">
@@ -218,7 +233,6 @@ const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({ movie, onClose, onS
             <button onClick={() => setIsFullHeight(!isFullHeight)} className={`p-2 md:p-3 rounded-full transition-all hidden md:block ${isFullHeight ? 'text-[#00bfff] bg-white/10' : 'text-white hover:bg-white/10'}`}>
               {isFullHeight ? <PanelRightOpen size={24} /> : <PanelRightClose size={24} />}
             </button>
-            {/* Spacer for mobile layout alignment */}
             <div className="md:hidden w-10"></div>
           </div>
 
@@ -282,7 +296,6 @@ const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({ movie, onClose, onS
         </div>
       </div>
 
-      {/* Sidebar - Hidden if isFullHeight is true (common on mobile) */}
       {!isFullHeight && (
         <div className="h-[40vh] md:h-full w-full md:w-1/4 bg-[#0a0a0a] border-t md:border-t-0 md:border-l border-white/5 flex flex-col overflow-hidden animate-fadeIn">
           <div className="p-6 md:p-10 shrink-0 border-b border-white/5 flex items-center gap-3">

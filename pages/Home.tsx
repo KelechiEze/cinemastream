@@ -7,6 +7,7 @@ import SectionBanner from '../components/SectionBanner';
 import SectionTVSeries from '../components/SectionTVSeries';
 import SectionSeasonFeature from '../components/SectionSeasonFeature';
 import SectionRegions from '../components/SectionRegions';
+import AdSlot from '../components/AdSlot';
 import { Movie } from '../types';
 import { HERO_SLIDES, POPULAR_MOVIES, COMEDY_MOVIES, TV_SERIES } from '../constants';
 import { fetchTrending, fetchPopularMovies, fetchComedyMovies, fetchTVSeries } from '../services/tmdb';
@@ -72,10 +73,15 @@ const Home: React.FC<HomeProps> = ({ onPlay }) => {
         {/* Visual Industry Browse */}
         <SectionRegions />
 
-        {/* Popular Section with Expanded Capability */}
+        {/* Popular Section */}
         <SectionPopular movies={popularMovies} onPlay={onPlay} />
 
-        {/* Thematic Comedy Row */}
+        {/* HOME AD SLOT: LEADERBOARD */}
+        <div className="animate-fadeIn">
+            <AdSlot type="leaderboard" />
+        </div>
+
+        {/* Comedy Row */}
         <div id="comedy">
             <SectionComedy movies={comedyMovies} onPlay={onPlay} />
         </div>
